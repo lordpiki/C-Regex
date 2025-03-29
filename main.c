@@ -6,7 +6,33 @@
 // Declartions of functions
 int main();
 bool parseRegex(char *regex, char *txt);
+void addToLiteral(char* literal, char letter);
+bool parseToken(char* txt, char token, int tokenIndex);
 bool isLetter(char c);
+
+
+bool isLetter(char c)
+{
+    return (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
+}
+
+bool parseToken(char* txt, char token, int tokenIndex)
+{
+
+}
+
+void addToLiteral(char* literal, char letter)
+{
+    int len = strlen(literal);
+    for (int i = 0; i < len; i++)
+    {
+        if (literal[i] == 0)
+        {
+            literal[i] = letter;
+            return;
+        }
+    }
+}
 
 // Function implementations
 bool parseRegex(char *regex, char *txt)
@@ -27,10 +53,7 @@ bool parseRegex(char *regex, char *txt)
     // parse regex
     for (int i = 0; i < regLen; i++)
     {
-        switch (regex[i]):
-        {
-            case '.':
-        }
+        parseToken(parse)
     }
     return false;
 }
