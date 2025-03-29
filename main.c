@@ -1,14 +1,15 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 
 
 // Declartions of functions
 int main();
-bool parseRegex(char *regex, char *str);
+bool parseRegex(char *regex, char *txt);
 bool isLetter(char c);
 
 // Function implementations
-bool parseRegex(char *regex, char *str)
+bool parseRegex(char *regex, char *txt)
 {
     // parse regex (will currently suppert * and . on english characters)
     // the parsing will use a switch case on each char against the currently supported tokens
@@ -19,7 +20,18 @@ bool parseRegex(char *regex, char *str)
     
     // String literal for matching anything with the string, let's say current string literals are 50 chars max as to not waste memeory resizing the string
     // will need to be fixed\optimized later
-
+    char literal[50] = {0};
+    int regLen = strlen(regex);
+    int txtLen = strlen(txt);
+    
+    // parse regex
+    for (int i = 0; i < regLen; i++)
+    {
+        switch (regex[i]):
+        {
+            case '.':
+        }
+    }
     return false;
 }
 
