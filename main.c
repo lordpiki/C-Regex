@@ -16,9 +16,19 @@ bool isLetter(char c)
     return (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
 }
 
+
 bool parseToken(char* txt, char token, int tokenIndex)
 {
-
+    switch (token)
+    {
+        case '.':
+            return true;
+            break;
+        case '*':
+            // Todo
+            break;
+    }
+    return false; // Todo
 }
 
 void addToLiteral(char* literal, char letter)
@@ -37,6 +47,7 @@ void addToLiteral(char* literal, char letter)
 // Function implementations
 bool parseRegex(char *regex, char *txt)
 {
+    // this function will check if the regex holds up for this txt exactly, not in a substr or anything like that
     // parse regex (will currently suppert * and . on english characters)
     // the parsing will use a switch case on each char against the currently supported tokens
     // if it doesn't find a token (* or .) then it will add it to the current string literal
@@ -53,7 +64,15 @@ bool parseRegex(char *regex, char *txt)
     // parse regex
     for (int i = 0; i < regLen; i++)
     {
-        parseToken(parse)
+        if (isLetter(regex[i]))
+        {
+            addToLiteral(literal, regex[i]);
+        }
+        else
+        {
+            parseToken(txt, regex[i], i);
+        }
+
     }
     return false;
 }
