@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-    
+
 // Declartions of functions
 int main();
 bool parseRegex(char *regex, char *txt);
@@ -10,8 +10,6 @@ void addToLiteral(char* literal, char letter);
 bool checkMatching(char* txt, int txtIndex, char token);
 bool isLetter(char c);
 int starToken(char* txt, char previousToken, int txtIndex);
-int letterToken(char* txt, char token, int txtIndex, char* regex , int tokenIndex);
-bool checkMatching(char* txt, int txtIndex, char token);
 
 
 bool isLetter(char c)
@@ -19,28 +17,10 @@ bool isLetter(char c)
     return (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
 }
 
-int letterToken(char* txt, char token, int txtIndex, char* regex, int tokenIndex)
-{
-    // Check if the next token is one of these '*', '+', '?' 
-    // if it is then we will have to check for the amount per token of this token
-    char nextToken = regex[tokenIndex + 1];
-    switch (nextToken)
-    {
-        case '*':
-            return txtIndex;
-            break;
-    }
-    if (checkMatching(txt, txtIndex, token))
-    {
-        return txtIndex + 1;
-    }
-    return -1;
-}
-
 // Will return the next index of the str to check, will return -1 if fails
 int starToken(char* txt, char previousToken, int txtIndex)
 {
-    while (checkMatching(txt, txtIndex, previousToken) && txtIndex < strlen(txt))
+    while (checkMatching(txt, txtIndex, previousToken))
     {
         txtIndex++;
     }
@@ -90,51 +70,19 @@ bool parseRegex(char *regex, char *txt)
             case '.':
                 txtIndex++;
                 break;
-                case '*':
-                txtIndex = starToken(txt, regex[i - 1], txtIndex);
+            case '*':
                 break;
             default:
-                txtIndex = letterToken(txt, token, txtIndex, regex, i);
+                checkMatching(txt, int txtIndex, char token)
                 break;
         }
-        if (txtIndex == -1)
-        {
-            return false;
-        }
     }
-    return txtIndex == txtLen;
+    return true;
 }
 
-void test(char* regex, char* txt, bool expected) {
-    bool result = parseRegex(regex, txt);
-    printf("Regex: \"%s\", Text: \"%s\" → %s (Expected: %s)\n",
-           regex, txt, result ? "MATCH" : "NO MATCH",
-           expected ? "MATCH" : "NO MATCH");
-}
-
-int main() {
-    // Basic matching
-    test("hello", "hello", true);
-    test("hello", "helloo", false);
-    test("hello", "hell", false);
-    
-    // Wildcard `.` test
-    test("h.llo", "hello", true);
-    test("h.llo", "hallo", true);
-    test("h.llo", "hxllo", true);
-    test("h.llo", "hlllo", true);
-
-    // Star `*` test
-    test("a*b", "b", true);        // Matches zero 'a'
-    test("a*b", "ab", true);       // Matches one 'a'
-    test("a*b", "aaab", true);     // Matches multiple 'a'
-    test("a*b", "ba", false);      // 'b' must be at the end
-
-    // Combination of `.` and `*`
-    test("a.*b", "ab", true);
-    test("a.*b", "acb", true);
-    test("a.*b", "axyzb", true);
-    test("a.*b", "a", false);  // No 'b' at the end
-
+int main()
+{
+    printf("Hello, World!!!\n");
     return 0;
 }
+
