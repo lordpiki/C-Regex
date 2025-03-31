@@ -1,19 +1,54 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <strings.h>
 
+// Types of tokens
+enum {
+    LITERAL = 1,
+    DOT = 2,
+    STAR = 3
+};
 
 // Declarations of structures
+typedef struct token
+{
+    int type;
+    char* str;    
+    struct token* next;
+} token;
 
-
+typedef struct group
+{
+    int mainToken;
+    token* tokens[3];
+    struct group* next;
+} group;
 
 // Declaraions of functions
 int main();
-bool parseRegex(char *regex, char *txt);
-void addToLiteral(char* literal, char letter);
-bool checkMatching(char* txt, int txtIndex, char token);
-bool isLetter(char c);
+void test(char* regex, char* txt, bool expected);
 
+// Regex functions
+bool parseRegex(char *regex, char *txt);
+token* regexToTokens(char* regex);
+int parseToken(char c);
+group* tokensToGroups(token* tokens);
+bool parseGroup(group* first, char* txt);
+
+// Token functions
+token* getNextToken(char* regex, int* index);
+token* tokenizeDot(int* index);
+token* tokenizeStar(char* regex, int* index);
+token* tokenizeLiteral(char* reg, int* index);
+
+// Helper functions
+void addToLiteral(char* literal, char letter);
+void reverseStr(char* str);
+
+// Init functions
+token* initToken(char* str, int type, token* next);
+group* initGroup(group* last, token* first, token* second, token* third);
 
 
 bool isLetter(char c)
@@ -22,20 +57,71 @@ bool isLetter(char c)
 }
 
 
-bool checkMatching(char* txt, int txtIndex, char token)
-{
-    return token == '.' || txt[txtIndex] == token;
-}
-
-
 void addToLiteral(char* literal, char letter)
 {
 }
 
-// Function implementations
+
+
+// Returns the next token in the regex, and moves the index to the next token
+token* getNextToken(char* regex, int* index)
+{
+    
+    switch (regex[*index])
+    {
+        case '.':
+            {
+                return tokenizeDot(index);
+            }
+        case '*':
+            {
+                return tokenizeStar(regex, index);
+            }
+        default:
+            {
+                return tokenizeLiteral(regex, index);
+            }
+    }
+    return NULL;
+}
+
+void reverseStr(char* str)
+{
+    int left = 0, right = strlen(str) - 1;
+    while (left < right) {
+        char temp = str[left];
+        str[left] = str[right];
+        str[right] = temp;
+        left++;
+        right--;
+    }
+}
+
+token* regexToTokens(char* regex)
+{
+    reverseStr(regex);
+    int len = strlen(regex);
+    int regIndex = 0;
+    token* first = getNextToken(regex, &regIndex);
+    token* curr = first;
+    // Go over the the regex from the end
+    while (regIndex > 0 && curr != NULL)
+    {
+        curr->next = getNextToken(regex, &regIndex);
+        curr = curr->next;
+    }
+    return first;
+}
+
+// Function will parse regex and will return true or false if the txt matches the regex
 bool parseRegex(char *regex, char *txt)
 {
-    return false;
+    // Convert regex to tokens
+    token* tokens = regexToTokens(regex);
+    // Group tokens
+    group* groups = tokensToGroups(tokens);
+    // Go through the groups and the txt
+    return parseGroup(groups, txt);
 }
 
 void test(char* regex, char* txt, bool expected) {
