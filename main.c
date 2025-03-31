@@ -47,7 +47,7 @@ void addToLiteral(char* literal, char letter);
 void reverseStr(char* str);
 
 // Init functions
-token* initToken(char* str, int type, token* next);
+token* initToken(char* str, int type);
 group* initGroup(group* last, token* first, token* second, token* third);
 
 
@@ -62,6 +62,11 @@ void addToLiteral(char* literal, char letter)
 }
 
 
+token* tokenizeDot(int* index)
+{
+    (*index)++;
+    return initToken(NULL, DOT);
+}
 
 // Returns the next token in the regex, and moves the index to the next token
 token* getNextToken(char* regex, int* index)
