@@ -60,6 +60,48 @@ void printToken(token* token);
 void printAllTokens(token* first);
 void printGroups(group* first);
 
+
+void printToken(token* token)
+{
+    switch (token->type)
+    {
+        case DOT:
+            {
+                printf(".");
+                break;
+            }
+        case STAR:
+            {
+                printf("*");
+                break;
+            }
+        case LITERAL:
+            {
+                printf("%s", token->str);
+                break;
+            }
+        default:
+            {
+                printf("ERROR UNKOWN TYPE: %d", token->type);
+            }
+    }
+}
+
+void printAllTokens(token* first)
+{
+    while (first != NULL)
+    {
+        printToken(first);
+        printf("->");
+        first = first->next;
+    }
+}
+
+void freeToken(token* token)
+{
+    // TODO
+}
+
 bool isLetter(char c)
 {
     return (c >= 65 && c <= 90) || (c >= 97 && c <= 122);
@@ -79,12 +121,14 @@ token* initToken(char* str, int type, token* lastToken)
 
 token* tokenizeDot(int* index, token* lastToken)
 {
+    printf("DOT\n");
     (*index)++;
     return initToken(NULL, DOT, lastToken);
 }
 
 token* tokenizeStar(char* regex, int* index, token* lastToken)
 {
+    printf("STAR\n");
     // Create star token
     (*index)++;
     token* starToken = initToken(regex, STAR, lastToken);
@@ -94,6 +138,7 @@ token* tokenizeStar(char* regex, int* index, token* lastToken)
     // Get the next token in order for the star token to work properly
     token* nextToken = getNextToken(regex, &tempIndex, starToken);
     // If the next token is literal, take only the first letter and make it a seperate token
+    (*index)++;
     if (nextToken->type == LITERAL)
     {
         char newText[1] = {nextToken->str[strlen(nextToken->str)-1]};
@@ -107,6 +152,7 @@ token* tokenizeStar(char* regex, int* index, token* lastToken)
 // The function will reverse the string becaues the regex is reversed
 token* tokenizeLiteral(char* regex, int* index, token* lastToken)
 {
+    printf("LITERAL\n");
     int firstIndex = *index;
     int regexLen = strlen(regex);
 
@@ -115,7 +161,7 @@ token* tokenizeLiteral(char* regex, int* index, token* lastToken)
     int strLen = *index - firstIndex;
 
     // Allocate memory and copy from regex to a new string
-    char* str = strndup(regex + *index, strLen);
+    char* str = strndup(regex + firstIndex, strLen);
     
     // Reverse the string because the regex is reversed
     reverseStr(str);
@@ -125,7 +171,7 @@ token* tokenizeLiteral(char* regex, int* index, token* lastToken)
 // Returns the next token in the regex, and moves the index to the next token
 token* getNextToken(char* regex, int* index, token* lastToken)
 {
-    
+    printf("Index: %d\n", *index);    
     switch (regex[*index])
     {
         case '.':
@@ -164,7 +210,7 @@ token* regexToTokens(char* regex)
     token* first = getNextToken(regex, &regIndex, NULL);
     token* curr = first;
     // Go over the the regex from the end
-    while (regIndex > 0 && curr != NULL)
+    while (regIndex < len && curr != NULL)
     {
         // The function will get the curr and set it's next to the token, and then will return the token
         curr = getNextToken(regex, &regIndex, curr);
@@ -178,9 +224,10 @@ bool parseRegex(char *regex, char *txt)
     // Convert regex to tokens
     token* tokens = regexToTokens(regex);
     // Group tokens
-    group* groups = tokensToGroups(tokens);
+    // group* groups = tokensToGroups(tokens);
     // Go through the groups and the txt
-    return parseGroup(groups, txt);
+    // return parseGroup(groups, txt);
+    return 0;
 }
 
 void test(char* regex, char* txt, bool expected) {
@@ -191,28 +238,33 @@ void test(char* regex, char* txt, bool expected) {
 }
 
 int main() {
-    // Basic matching
-    test("hello", "hello", true);
-    test("hello", "helloo", false);
-    test("hello", "hell", false);
-    
-    // Wildcard `.` test
-    test("h.llo", "hello", true);
-    test("h.llo", "hallo", true);
-    test("h.llo", "hxllo", true);
-    test("h.llo", "hlllo", true);
 
-    // Star `*` test
-    test("a*b", "b", true);        // Matches zero 'a'
-    test("a*b", "ab", true);       // Matches one 'a'
-    test("a*b", "aaab", true);     // Matches multiple 'a'
-    test("a*b", "ba", false);      // 'b' must be at the end
+    char regex[] = "abc*de.*";
+    printAllTokens(regexToTokens(regex));
 
-    // Combination of `.` and `*`
-    test("a.*b", "ab", true);
-    test("a.*b", "acb", true);
-    test("a.*b", "axyzb", true);
-    test("a.*b", "a", false);  // No 'b' at the end
 
+    // // Basic matching
+    // test("hello", "hello", true);
+    // test("hello", "helloo", false);
+    // test("hello", "hell", false);
+    // 
+    // // Wildcard `.` test
+    // test("h.llo", "hello", true);
+    // test("h.llo", "hallo", true);
+    // test("h.llo", "hxllo", true);
+    // test("h.llo", "hlllo", true);
+    //
+    // // Star `*` test
+    // test("a*b", "b", true);        // Matches zero 'a'
+    // test("a*b", "ab", true);       // Matches one 'a'
+    // test("a*b", "aaab", true);     // Matches multiple 'a'
+    // test("a*b", "ba", false);      // 'b' must be at the end
+    //
+    // // Combination of `.` and `*`
+    // test("a.*b", "ab", true);
+    // test("a.*b", "acb", true);
+    // test("a.*b", "axyzb", true);
+    // test("a.*b", "a", false);  // No 'b' at the end
+    //
     return 0;
 }
