@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -37,19 +38,23 @@ group* tokensToGroups(token* tokens);
 bool parseGroup(group* first, char* txt);
 
 // Token functions
-token* getNextToken(char* regex, int* index);
-token* tokenizeDot(int* index);
-token* tokenizeStar(char* regex, int* index);
-token* tokenizeLiteral(char* reg, int* index);
+token* getNextToken(char* regex, int* index, token* lastToken);
+token* tokenizeDot(int* index, token* lastToken);
+token* tokenizeStar(char* regex, int* index, token* lastToken);
+token* tokenizeLiteral(char* regex, int* index, token* lastToken);
 
 // Helper functions
 void addToLiteral(char* literal, char letter);
 void reverseStr(char* str);
 
 // Init functions
-token* initToken(char* str, int type);
+// TODO: Make sure that the created token will point to the lastToken
+token* initToken(char* str, int type, token* lastToken);
 group* initGroup(group* last, token* first, token* second, token* third);
 
+// Free functions
+void freeToken(token* token);
+void freeGroup(token* group);
 
 bool isLetter(char c)
 {
@@ -62,29 +67,68 @@ void addToLiteral(char* literal, char letter)
 }
 
 
-token* tokenizeDot(int* index)
+token* tokenizeDot(int* index, token* lastToken)
 {
     (*index)++;
-    return initToken(NULL, DOT);
+    return initToken(NULL, DOT, lastToken);
+}
+
+token* tokenizeStar(char* regex, int* index, token* lastToken)
+{
+    // Create star token
+    (*index)++;
+    token* starToken = initToken(regex, STAR, lastToken);
+    
+    // create fake index to not tamper with the existing index
+    int tempIndex = *index;
+    // Get the next token in order for the star token to work properly
+    token* nextToken = getNextToken(regex, &tempIndex, starToken);
+    // If the next token is literal, take only the first letter and make it a seperate token
+    if (nextToken->type == LITERAL)
+    {
+        char newText[1] = {nextToken->str[strlen(nextToken->str)-1]};
+        freeToken(nextToken);
+        return initToken(newText, LITERAL, starToken);
+    }
+    return nextToken;
+}
+
+// Function will make the literal a string until the next non letter char in the regex
+// The function will reverse the string becaues the regex is reversed
+token* tokenizeLiteral(char* regex, int* index, token* lastToken)
+{
+    int firstIndex = *index;
+    int regexLen = strlen(regex);
+
+    // Go forward in the regex until we meet a non-letter character to calculate the length of the literal
+    for (;*index < regexLen && isLetter(regex[*index]); (*index)++) {};
+    int strLen = *index - firstIndex;
+
+    // Allocate memory and copy from regex to a new string
+    char* str = strndup(regex + *index, strLen);
+    
+    // Reverse the string because the regex is reversed
+    reverseStr(str);
+    return initToken(str, LITERAL, lastToken);
 }
 
 // Returns the next token in the regex, and moves the index to the next token
-token* getNextToken(char* regex, int* index)
+token* getNextToken(char* regex, int* index, token* lastToken)
 {
     
     switch (regex[*index])
     {
         case '.':
             {
-                return tokenizeDot(index);
+                return tokenizeDot(index, lastToken);
             }
         case '*':
             {
-                return tokenizeStar(regex, index);
+                return tokenizeStar(regex, index, lastToken);
             }
         default:
             {
-                return tokenizeLiteral(regex, index);
+                return tokenizeLiteral(regex, index, lastToken);
             }
     }
     return NULL;
@@ -107,15 +151,15 @@ token* regexToTokens(char* regex)
     reverseStr(regex);
     int len = strlen(regex);
     int regIndex = 0;
-    token* first = getNextToken(regex, &regIndex);
+    token* first = getNextToken(regex, &regIndex, NULL);
     token* curr = first;
     // Go over the the regex from the end
     while (regIndex > 0 && curr != NULL)
     {
-        curr->next = getNextToken(regex, &regIndex);
-        curr = curr->next;
+        // The function will get the curr and set it's next to the token, and then will return the token
+        curr = getNextToken(regex, &regIndex, curr);
     }
-    return first;
+    return curr;
 }
 
 // Function will parse regex and will return true or false if the txt matches the regex
