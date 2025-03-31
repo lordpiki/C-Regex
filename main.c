@@ -1,8 +1,8 @@
-#include <cstdio>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <strings.h>
+#include <stdlib.h>
 
 // Types of tokens
 enum {
@@ -44,17 +44,21 @@ token* tokenizeStar(char* regex, int* index, token* lastToken);
 token* tokenizeLiteral(char* regex, int* index, token* lastToken);
 
 // Helper functions
-void addToLiteral(char* literal, char letter);
 void reverseStr(char* str);
 
 // Init functions
-// TODO: Make sure that the created token will point to the lastToken
 token* initToken(char* str, int type, token* lastToken);
+// TODO
 group* initGroup(group* last, token* first, token* second, token* third);
 
 // Free functions
 void freeToken(token* token);
 void freeGroup(token* group);
+
+// Helpful functions
+void printToken(token* token);
+void printAllTokens(token* first);
+void printGroups(group* first);
 
 bool isLetter(char c)
 {
@@ -62,10 +66,16 @@ bool isLetter(char c)
 }
 
 
-void addToLiteral(char* literal, char letter)
+token* initToken(char* str, int type, token* lastToken)
 {
+    // Allocate memory for token
+    token* t = (token*)malloc(sizeof(token));
+    // Set the token values
+    t->str = str;
+    t->type = type;
+    t->next = lastToken;
+    return t;
 }
-
 
 token* tokenizeDot(int* index, token* lastToken)
 {
