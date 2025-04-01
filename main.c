@@ -387,16 +387,24 @@ bool checkMatching(char* txt, int index, token* t)
 
 bool parseGroupStar(group* g, char* txt, int* index)
 {
+    moveIndexAmount(index, -1);
     int savedIndex = *index;
-    while (checkMatching(txt, *index, g->secondary))
+    do
     {
-        
-    }
+        moveIndex(index);
+        if (parseGroup(g->next, txt, index))
+            return true;
+        savedIndex++;
+        *index = savedIndex;
+    } while (checkMatching(txt, *index, g->secondary) && *index < strlen(txt));
     return false;
 }
 
 bool parseGroupLiteral(group* g, char* txt, int* index)
 {
+    // Check length of the txt against the index
+    if (strlen(txt) <= *index)
+        return false;
     if (0 == strncmp(txt + *index, g->main->str, strlen(g->main->str)))
     {
         moveIndexAmount(index, strlen(g->main->str));
@@ -410,6 +418,10 @@ bool parseGroupLiteral(group* g, char* txt, int* index)
 bool parseGroup(group* group, char* txt, int* index)
 {
     // Function will return if the current group matches
+    if (group == NULL)
+        return true;
+    // printGroup(group);
+    // printf("%d\n", *index);
     switch (group->main->type)
     {
         case DOT:
@@ -444,59 +456,51 @@ bool parseRegex(char *regex, char *txt)
     group* groups = tokensToGroups(tokens);
     // Go through the groups and the txt
     int txtIndex = 0;
-    return parseGroup(groups, txt, &txtIndex);
+    return parseGroup(groups, txt, &txtIndex) && txt[txtIndex] == '\0';
 }
 
 void test(char* regex, char* txt, bool expected) {
-    bool result = parseRegex(regex, txt);
-    printf("Regex: \"%s\", Text: \"%s\" → %s (Expected: %s)\n",
+    // Create new str for the regex
+    char* newRegex = strdup(regex);
+    // Print the test, the tokens, and the groups
+    // printf("Regex: \"%s\", Text: \"%s\"\n", regex, txt);
+    // printAllGroups(tokensToGroups(regexToTokens(newRegex)));
+    bool result = parseRegex(newRegex, txt);
+    printf("Regex: \"%s\", Text: \"%s\" → %s (Expected: %s)",
            regex, txt, result ? "MATCH" : "NO MATCH",
            expected ? "MATCH" : "NO MATCH");
+    printf(" Correct? %s\n", result == expected ? "YES" : "NO");
 }
 
 int main() {
 
     printf("\n");
-    char regex[] = "a.*";
-    printAllGroups(tokensToGroups(regexToTokens(regex)));
-
-    char regex2[] = "a.*b";
-    printAllGroups(tokensToGroups(regexToTokens(regex2)));
-
-    char regex3[] = "hel.*o";
-    printAllGroups(tokensToGroups(regexToTokens(regex3)));
-
-    char regex4[] = "h.llo";
-    printAllGroups(tokensToGroups(regexToTokens(regex4)));
-
-
+    // char regex[] = "a.*";
+    // printAllGroups(tokensToGroups(regexToTokens(regex)));
 
     
+    // Basic matching
+    test("hello", "hello", true);
+    test("hello", "helloo", false);
+    test("hello", "hell", false);
 
+    // Wildcard `.` test
+    test("h.llo", "hello", true);
+    test("h.llo", "hallo", true);
+    test("h.llo", "hxllo", true);
+    test("h.llo", "hlllo", true);
 
+    // Star `*` test
+    test("a*b", "b", true);        // Matches zero 'a'
+    test("a*b", "ab", true);       // Matches one 'a'
+    test("a*b", "aaab", true);     // Matches multiple 'a'
+    test("a*b", "ba", false);      // 'b' must be at the end
 
-    // // Basic matching
-    // test("hello", "hello", true);
-    // test("hello", "helloo", false);
-    // test("hello", "hell", false);
-    // 
-    // // Wildcard `.` test
-    // test("h.llo", "hello", true);
-    // test("h.llo", "hallo", true);
-    // test("h.llo", "hxllo", true);
-    // test("h.llo", "hlllo", true);
-    //
-    // // Star `*` test
-    // test("a*b", "b", true);        // Matches zero 'a'
-    // test("a*b", "ab", true);       // Matches one 'a'
-    // test("a*b", "aaab", true);     // Matches multiple 'a'
-    // test("a*b", "ba", false);      // 'b' must be at the end
-    //
-    // // Combination of `.` and `*`
-    // test("a.*b", "ab", true);
-    // test("a.*b", "acb", true);
-    // test("a.*b", "axyzb", true);
-    // test("a.*b", "a", false);  // No 'b' at the end
+    // Combination of `.` and `*`
+    test("a.*b", "ab", true);
+    test("a.*b", "acb", true);
+    test("a.*b", "axyzb", true);
+    test("a.*b", "a", false);  // No 'b' at the end
     //
     return 0;
 }
