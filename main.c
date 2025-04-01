@@ -21,8 +21,8 @@ typedef struct token
 
 typedef struct group
 {
-    int mainToken;
-    token* tokens[3];
+    token* main;
+    token* secondary;
     struct group* next;
 } group;
 
@@ -89,17 +89,20 @@ void printToken(token* token)
 
 void printAllTokens(token* first)
 {
-    while (first != NULL)
+    token* curr = first;
+    while (curr != NULL)
     {
-        printToken(first);
+        printToken(curr);
         printf("->");
-        first = first->next;
+        curr = curr->next;
     }
+    printf("NULL\n");
 }
 
 void freeToken(token* token)
 {
-    // TODO
+    free(token->str);
+    free(token);
 }
 
 bool isLetter(char c)
@@ -121,14 +124,12 @@ token* initToken(char* str, int type, token* lastToken)
 
 token* tokenizeDot(int* index, token* lastToken)
 {
-    printf("DOT\n");
     (*index)++;
     return initToken(NULL, DOT, lastToken);
 }
 
 token* tokenizeStar(char* regex, int* index, token* lastToken)
 {
-    printf("STAR\n");
     // Create star token
     (*index)++;
     token* starToken = initToken(regex, STAR, lastToken);
@@ -141,9 +142,10 @@ token* tokenizeStar(char* regex, int* index, token* lastToken)
     (*index)++;
     if (nextToken->type == LITERAL)
     {
-        char newText[1] = {nextToken->str[strlen(nextToken->str)-1]};
+        // Allocate memory for newText instead of using the same memory as nextToken
+        char* newTxt = strndup(nextToken->str + strlen(nextToken->str) - 1, 1);
         freeToken(nextToken);
-        return initToken(newText, LITERAL, starToken);
+        return initToken(newTxt, LITERAL, starToken);
     }
     return nextToken;
 }
@@ -152,7 +154,6 @@ token* tokenizeStar(char* regex, int* index, token* lastToken)
 // The function will reverse the string becaues the regex is reversed
 token* tokenizeLiteral(char* regex, int* index, token* lastToken)
 {
-    printf("LITERAL\n");
     int firstIndex = *index;
     int regexLen = strlen(regex);
 
@@ -171,7 +172,6 @@ token* tokenizeLiteral(char* regex, int* index, token* lastToken)
 // Returns the next token in the regex, and moves the index to the next token
 token* getNextToken(char* regex, int* index, token* lastToken)
 {
-    printf("Index: %d\n", *index);    
     switch (regex[*index])
     {
         case '.':
@@ -218,13 +218,18 @@ token* regexToTokens(char* regex)
     return curr;
 }
 
+group* tokensToGroups(token* tokens)
+{
+    return NULL;
+}
+
 // Function will parse regex and will return true or false if the txt matches the regex
 bool parseRegex(char *regex, char *txt)
 {
     // Convert regex to tokens
     token* tokens = regexToTokens(regex);
     // Group tokens
-    // group* groups = tokensToGroups(tokens);
+    group* groups = tokensToGroups(tokens);
     // Go through the groups and the txt
     // return parseGroup(groups, txt);
     return 0;
@@ -239,9 +244,9 @@ void test(char* regex, char* txt, bool expected) {
 
 int main() {
 
-    char regex[] = "abc*de.*";
+    printf("\n");
+    char regex[] = "abm*d*";
     printAllTokens(regexToTokens(regex));
-
 
     // // Basic matching
     // test("hello", "hello", true);
