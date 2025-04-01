@@ -123,7 +123,11 @@ token* initToken(char* str, int type, token* lastToken)
     // Set the token values
     t->str = str;
     t->type = type;
-    t->next = lastToken;
+    // t->next = lastToken;
+    if (lastToken != NULL)
+    {
+        lastToken->next = t;
+    }
     return t;
 }
 
@@ -220,7 +224,7 @@ token* regexToTokens(char* regex)
         // The function will get the curr and set it's next to the token, and then will return the token
         curr = getNextToken(regex, &regIndex, curr);
     }
-    return curr;
+    return first;
 }
 
 group* tokensToGroups(token* tokens)
@@ -250,8 +254,24 @@ void test(char* regex, char* txt, bool expected) {
 int main() {
 
     printf("\n");
-    char regex[] = "abm*d*";
+    char regex[] = "abc*de";
     printAllTokens(regexToTokens(regex));
+
+    // char regex2[] = "ab.*d*";
+    // printAllTokens(regexToTokens(regex2));
+    //
+    // char regex3[] = "a.*b";
+    // printAllTokens(regexToTokens(regex3));
+    //
+    // char regex4[] = "a*b";
+    // printAllTokens(regexToTokens(regex4));
+    //
+    // char regex5[] = "h.llo";
+    // printAllTokens(regexToTokens(regex5));
+    //
+    // char regex6[] = "hello";
+    // printAllTokens(regexToTokens(regex6));
+
 
     // // Basic matching
     // test("hello", "hello", true);
