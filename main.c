@@ -6,6 +6,7 @@
 
 // Types of tokens
 enum {
+    NONE = 0,
     LITERAL = 1,
     DOT = 2,
     STAR = 3
@@ -35,7 +36,11 @@ bool parseRegex(char *regex, char *txt);
 token* regexToTokens(char* regex);
 int parseToken(char c);
 group* tokensToGroups(token* tokens);
-bool parseGroup(group* first, char* txt);
+bool parseGroup(group* group, char* txt, int* index);
+
+bool parseGroupDot(group* g, char* txt, int* index);
+bool parseGroupStar(group* g, char* txt, int* index);
+bool parseGroupLiteral(group* g, char* txt, int* index);
 
 // Token functions
 token* getNextToken(char* regex, int* index, token* lastToken);
@@ -43,23 +48,51 @@ token* tokenizeDot(int* index, token* lastToken);
 token* tokenizeStar(char* regex, int* index, token* lastToken);
 token* tokenizeLiteral(char* regex, int* index, token* lastToken);
 
+// Group functions
+group* getNextGroup(token** currToken, group* lastGroup);
+group* groupDot(token** currToken, group* lastGroup);
+group* groupStar(token** currToken, group* lastGroup);
+group* groupLiteral(token** currToken, group* lastGroup);
+
+
 // Helper functions
 void reverseStr(char* str);
+void moveIndex(int* index);
+void moveIndexAmount(int* index, int amount);
+void moveToken(token** currToken);
 
 // Init functions
 token* initToken(char* str, int type, token* lastToken);
 // TODO
-group* initGroup(group* last, token* first, token* second, token* third);
+group* initGroup(token* main, token* secondary, group* lastGroup);
 
 // Free functions
 void freeToken(token* token);
-void freeGroup(token* group);
+void freeGroup(group* group);
 
 // Helpful functions
 void printToken(token* token);
 void printAllTokens(token* first);
-void printGroups(group* first);
+void printGroup(group* group);
+void printAllGroups(group* first);
 
+
+
+void moveIndex(int* index)
+{
+    (*index)++;
+}
+
+
+void moveIndexAmount(int* index, int amount)
+{
+    (*index) += amount;
+}
+
+void moveToken(token** currToken)
+{
+    (*currToken) = (*currToken)->next;
+}
 
 void printToken(token* token)
 {
@@ -78,6 +111,11 @@ void printToken(token* token)
         case LITERAL:
             {
                 printf("%s", token->str);
+                break;
+            }
+        case NONE:
+            {
+                printf("START");
                 break;
             }
         default:
@@ -99,6 +137,30 @@ void printAllTokens(token* first)
     printf("NULL\n");
 }
 
+void printGroup(group* group)
+{
+    printf("|");
+    printToken(group->main);
+    if (group->secondary != NULL)
+    {
+        printf("->");
+        printToken(group->secondary);
+    }
+    printf("|");
+}
+
+void printAllGroups(group* first)
+{
+    group* curr = first;
+    while (curr != NULL)
+    {
+        printGroup(curr);
+        printf(" => ");
+        curr = curr->next;
+    }
+    printf("NULL\n");
+}
+
 void freeToken(token* token)
 {
     // Check if token and token->str are not NULL
@@ -108,6 +170,13 @@ void freeToken(token* token)
     if (token->str != NULL)
         free(token->str);
     free(token);
+}
+
+void freeGroup(group* group)
+{
+    freeToken(group->main);
+    freeToken(group->secondary);
+    free(group);
 }
 
 bool isLetter(char c)
@@ -131,6 +200,19 @@ token* initToken(char* str, int type, token* lastToken)
     return t;
 }
 
+
+group* initGroup(token* main, token* secondary, group* lastGroup)
+{
+    // Allocate memory for the token
+    group* g = (group*)malloc(sizeof(group));
+    g->main = main;
+    g->secondary = secondary;
+    // if (lastGroup != NULL)
+    //     lastGroup->next = g;
+    g->next = lastGroup;
+    return g;
+}
+
 token* tokenizeDot(int* index, token* lastToken)
 {
     (*index)++;
@@ -140,8 +222,8 @@ token* tokenizeDot(int* index, token* lastToken)
 token* tokenizeStar(char* regex, int* index, token* lastToken)
 {
     // Create star token
+    token* starToken = initToken(NULL, STAR, lastToken);
     (*index)++;
-    token* starToken = initToken(regex, STAR, lastToken);
     
     // create fake index to not tamper with the existing index
     int tempIndex = *index;
@@ -216,7 +298,8 @@ token* regexToTokens(char* regex)
     reverseStr(regex);
     int len = strlen(regex);
     int regIndex = 0;
-    token* first = getNextToken(regex, &regIndex, NULL);
+    // token* first = getNextToken(regex, &regIndex, NULL);
+    token* first = initToken(NULL, NONE, NULL);
     token* curr = first;
     // Go over the the regex from the end
     while (regIndex < len && curr != NULL)
@@ -224,12 +307,132 @@ token* regexToTokens(char* regex)
         // The function will get the curr and set it's next to the token, and then will return the token
         curr = getNextToken(regex, &regIndex, curr);
     }
+    // Reverse the string back to normal
+    reverseStr(regex);
     return first;
+}
+
+group* groupDot(token** currToken, group* lastGroup)
+{
+    group* g =  initGroup(*currToken, NULL, lastGroup);
+    moveToken(currToken);
+    return g;
+}
+
+group* groupStar(token** currToken, group* lastGroup)
+{
+    token* starToken = *currToken;
+    moveToken(currToken);
+    group* g =  initGroup(starToken, *currToken, lastGroup);
+    moveToken(currToken);
+    return g;
+}
+
+group* groupLiteral(token** currToken, group* lastGroup)
+{
+    group* g =  initGroup(*currToken, NULL, lastGroup);
+    moveToken(currToken);
+    return g;
+}
+
+group* getNextGroup(token** currToken, group* lastGroup)
+{
+    switch ((*currToken)->type)
+    {
+        case DOT:
+            {
+                return groupDot(currToken, lastGroup);
+                break;
+            }
+        case STAR:
+            {
+                return groupStar(currToken, lastGroup);
+                break;
+            }
+        case LITERAL:
+            {
+                return groupLiteral(currToken, lastGroup);
+                break;
+            }
+    }
+    return NULL;
 }
 
 group* tokensToGroups(token* tokens)
 {
-    return NULL;
+    moveToken(&tokens);
+    token* currToken = tokens;
+    group* first = getNextGroup(&currToken, NULL);
+    group* curr = first;
+    while (currToken != NULL)
+    {
+        curr = getNextGroup(&currToken, curr);
+    }
+    return curr;
+}
+
+
+
+bool parseGroupDot(group* g, char* txt, int* index)
+{
+    moveIndex(index);
+    return parseGroup(g->next, txt, index); // check the next groups
+}
+
+bool checkMatching(char* txt, int index, token* t)
+{
+    // TODO: Make more robust later
+    return t->type == DOT || t->str[0] == txt[index];
+}
+
+bool parseGroupStar(group* g, char* txt, int* index)
+{
+    int savedIndex = *index;
+    while (checkMatching(txt, *index, g->secondary))
+    {
+        
+    }
+    return false;
+}
+
+bool parseGroupLiteral(group* g, char* txt, int* index)
+{
+    if (0 == strncmp(txt + *index, g->main->str, strlen(g->main->str)))
+    {
+        moveIndexAmount(index, strlen(g->main->str));
+        return parseGroup(g->next, txt, index); // check the next groups
+
+    }
+    return false;
+}
+
+
+bool parseGroup(group* group, char* txt, int* index)
+{
+    // Function will return if the current group matches
+    switch (group->main->type)
+    {
+        case DOT:
+            {
+                return parseGroupDot(group, txt, index);
+                break;
+            }
+        case STAR:
+            {
+                return parseGroupStar(group, txt, index);
+                break;
+            }
+        case LITERAL:
+            {
+                return parseGroupLiteral(group, txt, index);
+                break;
+            }
+        default:
+            {
+                return false;
+            }
+    }
+    return false;
 }
 
 // Function will parse regex and will return true or false if the txt matches the regex
@@ -240,8 +443,8 @@ bool parseRegex(char *regex, char *txt)
     // Group tokens
     group* groups = tokensToGroups(tokens);
     // Go through the groups and the txt
-    // return parseGroup(groups, txt);
-    return 0;
+    int txtIndex = 0;
+    return parseGroup(groups, txt, &txtIndex);
 }
 
 void test(char* regex, char* txt, bool expected) {
@@ -254,23 +457,22 @@ void test(char* regex, char* txt, bool expected) {
 int main() {
 
     printf("\n");
-    char regex[] = "abc*de";
-    printAllTokens(regexToTokens(regex));
+    char regex[] = "a.*";
+    printAllGroups(tokensToGroups(regexToTokens(regex)));
 
-    // char regex2[] = "ab.*d*";
-    // printAllTokens(regexToTokens(regex2));
-    //
-    // char regex3[] = "a.*b";
-    // printAllTokens(regexToTokens(regex3));
-    //
-    // char regex4[] = "a*b";
-    // printAllTokens(regexToTokens(regex4));
-    //
-    // char regex5[] = "h.llo";
-    // printAllTokens(regexToTokens(regex5));
-    //
-    // char regex6[] = "hello";
-    // printAllTokens(regexToTokens(regex6));
+    char regex2[] = "a.*b";
+    printAllGroups(tokensToGroups(regexToTokens(regex2)));
+
+    char regex3[] = "hel.*o";
+    printAllGroups(tokensToGroups(regexToTokens(regex3)));
+
+    char regex4[] = "h.llo";
+    printAllGroups(tokensToGroups(regexToTokens(regex4)));
+
+
+
+    
+
 
 
     // // Basic matching
