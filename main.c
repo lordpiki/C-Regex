@@ -101,7 +101,12 @@ void printAllTokens(token* first)
 
 void freeToken(token* token)
 {
-    free(token->str);
+    // Check if token and token->str are not NULL
+    if (token == NULL)
+        return;
+
+    if (token->str != NULL)
+        free(token->str);
     free(token);
 }
 
