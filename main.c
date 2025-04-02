@@ -489,7 +489,7 @@ bool parseGroupStar(group* g, char* txt, int* index)
 
 bool parseGroupPlus(group* g, char* txt, int* index)
 {
-    return parseGroupAmount(g, txt, index, 1, strlen(txt));
+    return checkMatching(txt, *index, g->secondary) && parseGroupAmount(g, txt, index, 1, strlen(txt));
 }
 
 bool parseGroupQuestion(group* g, char* txt, int* index)
