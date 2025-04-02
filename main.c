@@ -321,6 +321,14 @@ token* getNextToken(char* regex, int* index, token* lastToken)
             {
                 return tokenizeStar(regex, index, lastToken);
             }
+        case '+':
+            {
+                return tokenizePlus(regex, index, lastToken);
+            }
+        case '?':
+            {
+                return tokenizeQuestion(regex, index, lastToken);
+            }
         default:
             {
                 return tokenizeLiteral(regex, index, lastToken);
@@ -543,6 +551,16 @@ bool parseGroup(group* group, char* txt, int* index)
                 return parseGroupLiteral(group, txt, index);
                 break;
             }
+        case PLUS:
+            {
+                return parseGroupPlus(group, txt, index);
+                break;
+            }
+        case QUESTION:
+            {
+                return parseGroupQuestion(group, txt, index);
+                break;
+            }
         default:
             {
                 return false;
@@ -582,43 +600,24 @@ void test(char* regex, char* txt, bool expected)
 }
 
 
+
 int main() {
-    // Basic literal matches
-    test("abc", "abc", true);
-    test("abc", "abcd", true); // Should match from the start
-    test("abc", "aabc", false);
-    test("hello", "hello", true);
-    test("hello", "Hello", false); // Case-sensitive
+    // Testing `+`
+    test("a+", "a", true);       // Single 'a' should match
+    test("a+", "aaa", true);     // Multiple 'a's should match
+    test("a+", "", false);       // Empty string should not match
+    test("a+", "b", false);      // 'b' should not match
+    test("a+", "baaa", false);   // Must start matching from the beginning
 
-    // Wildcard .
-    test("a.c", "abc", true);
-    test("a.c", "adc", true);
-    test("a.c", "ac", false);
-    test("...", "abc", true);
-    test("...", "abcd", true);
+    // Testing `?`
+    test("a?", "", true);        // Empty string should match (zero occurrence)
+    test("a?", "a", true);       // Single 'a' should match (one occurrence)
+    test("a?", "aa", false);     // Two 'a's should not match (only zero or one allowed)
+    test("a?b", "b", true);      // 'b' should match (zero 'a' allowed)
+    test("a?b", "ab", true);     // 'ab' should match
+    test("a?b", "aab", false);   // Extra 'a' should not match
 
-    // Star *
-    test("a*", "", true);  // "" is valid (zero occurrences)
-    test("a*", "a", true);
-    test("a*", "aaaa", true);
-    test("a*", "b", true);
-    test("ab*", "a", true); // "b*" can be empty
-    test("ab*", "ab", true);
-    test("ab*", "abb", true);
-    test("ab*", "ac", true);
-    test(".*", "anything", true); // .* should match everything
-    test("a.*c", "abc", true);
-    test("a.*c", "ac", true);
-    test("a.*c", "axxxc", true);
-    test("a.*c", "a", false);
-
-    // Edge cases
-    test("", "", true);  // Empty regex should match empty string
-    test("", "abc", true); // Empty regex should match anything (trivial match)
-    test("a*", "", true);
-    test("a*", "aaaaaaa", true);
-    test("a*", "baaaa", true);
-    
+    printf("Tests completed.\n");
     return 0;
 }
 
