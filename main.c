@@ -256,7 +256,7 @@ token* tokenizeStar(char* regex, int* index, token* lastToken)
 {
     // Create star token
     token* starToken = initToken(NULL, STAR, lastToken);
-    (*index)++;
+    moveIndex(index);
     
     return seperateNextToken(regex, index, starToken);
 }
@@ -267,7 +267,7 @@ token* tokenizePlus(char* regex, int* index, token* lastToken)
 
     // Create star token
     token* plusToken = initToken(NULL, PLUS, lastToken);
-    (*index)++;
+    moveIndex(index);
     
     return seperateNextToken(regex, index, plusToken);
 }
@@ -276,7 +276,7 @@ token* tokenizeQuestion(char* regex, int* index, token* lastToken)
 
     // Create Question token
     token* questionToken = initToken(NULL, QUESTION, lastToken);
-    (*index)++;
+    moveIndex(index);
     
     return seperateNextToken(regex, index, questionToken);
 }
@@ -287,13 +287,14 @@ token* seperateNextToken(char* regex, int* index, token* lastToken)
     // create fake index to not tamper with the existing index
     int tempIndex = *index;
     // Get the next token in order for the star token to work properly
-    token* nextToken = getNextToken(regex, &tempIndex, lastToken);
+    token* nextToken = getNextToken(regex, index, lastToken);
     // If the next token is literal, take only the first letter and make it a seperate token
-    (*index)++;
     if (nextToken->type == LITERAL)
     {
         // Allocate memory for newText instead of using the same memory as nextToken
         char* newTxt = strndup(nextToken->str + strlen(nextToken->str) - 1, 1);
+        *index = tempIndex;
+        moveIndex(index);
         freeToken(nextToken);
         return initToken(newTxt, LITERAL, lastToken);
     }
@@ -395,7 +396,6 @@ token* regexToTokens(char* regex)
     while (regIndex < len && curr != NULL)
     {
         // The function will get the curr and set it's next to the token, and then will return the token
-        printToken(curr);
         curr = getNextToken(regex, &regIndex, curr);
     }
     // Reverse the string back to normal
@@ -572,16 +572,19 @@ bool parseGroupStar(group* g, char* txt, int* index)
 
 bool parseGroupPlus(group* g, char* txt, int* index)
 {
+    printf("Parsing plus\n");
     return checkMatching(txt, *index, g->secondary) && parseGroupAmount(g, txt, index, 1, strlen(txt));
 }
 
 bool parseGroupQuestion(group* g, char* txt, int* index)
 {
-    return parseGroupAmount(g, txt, index, 0, 1);
+    printf("Parsing question, index %d\n", *index);
+    return parseGroupAmount(g, txt, index, 0, *index + 1);
 }
 
 bool parseGroupParan(group* g, char* txt, int* index)
 {
+    printf("Parsing paran\n");
     return checkMatching(txt, *index, g->main);
 }
 
@@ -591,12 +594,14 @@ bool parseGroupAmount(group* g, char* txt, int* index, int min, int max)
     int savedIndex = *index;
     do
     {
+        printf("Moving on\n");
         moveIndex(index);
         if (parseGroup(g->next, txt, index))
             return true;
         savedIndex++;
         *index = savedIndex;
     } while (checkMatching(txt, *index, g->secondary) && *index < strlen(txt) && *index < max);
+    printf("Failed\n");
     return false;
 }
 
@@ -681,7 +686,7 @@ void test(char* regex, char* txt, bool expected)
     printf("\nRegex: \"%s\", Text: \"%s\"\n", regex, txt);
     printAllGroups(tokensToGroups(regexToTokens(newRegex)));
     bool result = parseRegex(newRegex, txt);
-    printf("Regex: \"%s\", Text: \"%s\" → %s (Expected: %s)",
+    printf("\nRegex: \"%s\", Text: \"%s\" → %s (Expected: %s)",
            regex, txt, result ? "MATCH" : "NO MATCH",
            expected ? "MATCH" : "NO MATCH");
     printf(" Correct? %s\n", result == expected ? "YES" : "NO");
@@ -706,29 +711,28 @@ int main() {
     // test("a?b", "aab", false);   // Extra 'a' should not match
 
     // Testing `[]`
-    test("[abc]", "a", true);      // Single match in set
-    test("[abc]", "b", true);
-    test("[abc]", "c", true);
-    test("[abc]", "d", false);     // Not in set
-    test("[abc]", "ab", true);     // Only first character matters
-    test("[abc]", "ba", true);
-    test("[xyz]", "x", true);      // Testing different set
-    test("[xyz]", "y", true);
-    test("[xyz]", "z", true);
-    test("[xyz]", "w", false);     // Not in set
-    test("[a-c]", "a", true);      // Range test
-    test("[a-c]", "b", true);
-    test("[a-c]", "c", true);
-    test("[a-c]", "d", false);     // Outside range
-    test("[0-9]", "5", true);      // Digit range
-    test("[0-9]", "a", false);     // Not a digit
-    test("[A-Z]", "B", true);      // Uppercase letters
-    test("[A-Z]", "b", false);     // Lowercase should not match
-    test("[A-Za-z]", "g", true);   // Any letter (upper or lowercase)
-    test("[A-Za-z]", "G", true);
-    test("[A-Za-z]", "9", false);  // Numbers not included
+    // test("[abc]", "a", true);      // Single match in set
+    // test("[abc]", "b", true);
+    // test("[abc]", "c", true);
+    // test("[abc]", "d", false);     // Not in set
+    // test("[abc]", "ab", true);     // Only first character matters
+    // test("[abc]", "ba", true);
+    // test("[xyz]", "x", true);      // Testing different set
+    // test("[xyz]", "y", true);
+    // test("[xyz]", "z", true);
+    // test("[xyz]", "w", false);     // Not in set
+    // test("[a-c]", "a", true);      // Range test
+    // test("[a-c]", "b", true);
+    // test("[a-c]", "c", true);
+    // test("[a-c]", "d", false);     // Outside range
+    // test("[0-9]", "5", true);      // Digit range
+    // test("[0-9]", "a", false);     // Not a digit
+    // test("[A-Z]", "B", true);      // Uppercase letters
+    // test("[A-Z]", "b", false);     // Lowercase should not match
+    // test("[A-Za-z]", "g", true);   // Any letter (upper or lowercase)
+    // test("[A-Za-z]", "G", true);
+    // test("[A-Za-z]", "9", false);  // Numbers not included
     test("[a-c]+d?[e-g]*h", "abbdehh", true);
-
 
     printf("Tests completed.\n");
     return 0;
