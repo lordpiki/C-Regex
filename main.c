@@ -12,7 +12,9 @@ enum {
     STAR = 3,
     PLUS = 4,
     QUESTION = 5,
-    PARAN = 6
+    PARAN = 6,
+    CARRET = 7,
+    DOLLAR = 8
 };
 
 // Declarations of structures
@@ -47,6 +49,8 @@ bool parseGroupLiteral(group* g, char* txt, int* index);
 bool parseGroupPlus(group* g, char* txt, int* index);
 bool parseGroupQuestion(group* g, char* txt, int* index);
 bool parseGroupParan(group* g, char* txt, int* index);
+bool parseGroupCarret(group* g, char* txt, int* index);
+bool parseGroupDollar(group* g, char* txt, int* index);
 
 bool parseGroupAmount(group* g, char* txt, int* index, int min, int max);
 
@@ -59,6 +63,8 @@ token* tokenizePlus(char* regex, int* index, token* lastToken);
 token* tokenizeQuestion(char* regex, int* index, token* lastToken);
 token* tokenizeLiteral(char* regex, int* index, token* lastToken);
 token* tokenizeParentheses(char* regex, int* index, token* lastToken);
+token* tokenizeCarret(char* regex, int* index, token* lastToken);
+token* tokenizeDollar(char* regex, int* index, token* lastToken);
 
 
 // Group functions
@@ -69,6 +75,8 @@ group* groupLiteral(token** currToken, group* lastGroup);
 group* groupPlus(token** currToken, group* lastGroup);
 group *groupQuestion(token **currToken, group *lastGroup);
 group *groupParan(token **currToken, group *lastGroup);
+group *groupCarret(token **currToken, group *lastGroup);
+group *groupDollar(token **currToken, group *lastGroup);
 
 
 
@@ -144,6 +152,16 @@ void printToken(token* token)
         case PARAN:
             {
                 printf("[%s]", token->str);
+                break;
+            }
+        case CARRET:
+            {
+                printf("^");
+                break;
+            }
+        case DOLLAR:
+            {
+                printf("$");
                 break;
             }
         case NONE:
@@ -248,7 +266,7 @@ group* initGroup(token* main, token* secondary, group* lastGroup)
 
 token* tokenizeDot(int* index, token* lastToken)
 {
-    (*index)++;
+    moveIndex(index);
     return initToken(NULL, DOT, lastToken);
 }
 
@@ -279,6 +297,18 @@ token* tokenizeQuestion(char* regex, int* index, token* lastToken)
     moveIndex(index);
     
     return seperateNextToken(regex, index, questionToken);
+}
+
+token* tokenizeCarret(char* regex, int* index, token* lastToken)
+{
+    moveIndex(index);
+    return initToken(NULL, CARRET, lastToken);
+}
+
+token* tokenizeDollar(char* regex, int* index, token* lastToken)
+{
+    moveIndex(index);
+    return initToken(NULL, DOLLAR, lastToken);
 }
 
 token* seperateNextToken(char* regex, int* index, token* lastToken)
@@ -363,6 +393,14 @@ token* getNextToken(char* regex, int* index, token* lastToken)
         case ']':
             {
                 return tokenizeParentheses(regex, index, lastToken);
+            }
+        case '^':
+            {
+                return tokenizeCarret(regex, index, lastToken);
+            }
+        case '$':
+            {
+                return tokenizeDollar(regex, index, lastToken);
             }
         default:
             {
@@ -451,6 +489,20 @@ group* groupLiteral(token** currToken, group* lastGroup)
     return g;
 }
 
+group* groupCarret(token** currToken, group* lastGroup)
+{
+    group* g =  initGroup(*currToken, NULL, lastGroup);
+    moveToken(currToken);
+    return g;
+}
+
+group* groupDollar(token** currToken, group* lastGroup)
+{
+    group* g =  initGroup(*currToken, NULL, lastGroup);
+    moveToken(currToken);
+    return g;
+}
+
 group* getNextGroup(token** currToken, group* lastGroup)
 {
     switch ((*currToken)->type)
@@ -483,6 +535,16 @@ group* getNextGroup(token** currToken, group* lastGroup)
         case PARAN:
             {
                 return groupParan(currToken, lastGroup);
+                break;
+            }
+        case CARRET:
+            {
+                return groupCarret(currToken, lastGroup);
+                break;
+            }
+        case DOLLAR:
+            {
+                return groupDollar(currToken, lastGroup);
                 break;
             }
     }
@@ -614,6 +676,16 @@ bool parseGroupLiteral(group* g, char* txt, int* index)
     return false;
 }
 
+bool parseGroupCarret(group* g, char* txt, int* index)
+{
+    return *index == 0 && parseGroup(g->next, txt, index);
+}
+
+bool parseGroupDollar(group* g, char* txt, int* index)
+{
+    // The dollar is always the last group
+    return *index == strlen(txt);
+}
 
 bool parseGroup(group* group, char* txt, int* index)
 {
@@ -649,6 +721,14 @@ bool parseGroup(group* group, char* txt, int* index)
             {
                 return parseGroupParan(group, txt, index);
             }
+        case CARRET:
+            {
+                return parseGroupCarret(group, txt, index);
+            }
+        case DOLLAR:
+            {
+                return parseGroupDollar(group, txt, index);
+            }
         default:
             {
                 return false;
@@ -668,7 +748,13 @@ bool parseRegex(char *regex, char *txt)
     group* groups = tokensToGroups(tokens);
     // Go through the groups and the txt
     int txtIndex = 0;
-    return parseGroup(groups, txt, &txtIndex);
+    for (int i = 0; i < strlen(txt); i++)
+    {
+        txtIndex = i;
+        if (parseGroup(groups, txt, &txtIndex))
+            return true;
+    }
+    return false;
 }
 
 void test(char* regex, char* txt, bool expected)
@@ -690,51 +776,70 @@ void test(char* regex, char* txt, bool expected)
 
 
 int main() {
-    // // Testing `+`
-    // test("a+", "a", true);       // Single 'a' should match
-    // test("a+", "aaa", true);     // Multiple 'a's should match
-    // test("a+", "", false);       // Empty string should not match
-    // test("a+", "b", false);      // 'b' should not match
-    // test("a+", "baaa", false);   // Must start matching from the beginning
-    //
-    // // Testing `?`
-    // test("a?", "", true);        // Empty string should match (zero occurrence)
-    // test("a?", "a", true);       // Single 'a' should match (one occurrence)
-    // test("a?", "aa", false);     // Two 'a's should not match (only zero or one allowed)
-    // test("a?b", "b", true);      // 'b' should match (zero 'a' allowed)
-    // test("a?b", "ab", true);     // 'ab' should match
-    // test("a?b", "aab", false);   // Extra 'a' should not match
+    printf("Running tests...\n");
 
-    // Testing `[]`
-    test("[abc]", "a", true);      // Single match in set
+    // --- Literals ---
+    test("abc", "abc", true);
+    test("abc", "abcd", false);
+    test("abc", "aBc", false);  // Case-sensitive test
+    test("hello", "hello", true);
+    test("hello", "hell", false);
+
+    // --- Wildcard '.' ---
+    test("a.c", "abc", true);
+    test("a.c", "adc", true);
+    test("a.c", "ac", false);   // Missing middle character
+    test("a.c", "abdc", false); // Extra character in between
+
+    // --- Quantifiers: '*' (zero or more) ---
+    test("a*b", "b", true);     // Zero 'a'
+    test("a*b", "ab", true);    // One 'a'
+    test("a*b", "aaab", true);  // Multiple 'a's
+    test("a*b", "a", false);    // Must end in 'b'
+
+    // --- Quantifiers: '+' (one or more) ---
+    test("a+b", "b", false);    // Needs at least one 'a'
+    test("a+b", "ab", true);
+    test("a+b", "aaab", true);
+    test("a+b", "a", false);
+
+    // --- Quantifiers: '?' (zero or one) ---
+    test("a?b", "b", true);
+    test("a?b", "ab", true);
+    test("a?b", "aab", false);
+    test("a?b", "a", false);
+
+    // --- Character Classes '[]' ---
+    test("[abc]", "a", true);
     test("[abc]", "b", true);
     test("[abc]", "c", true);
-    test("[abc]", "d", false);     // Not in set
-    test("[abc]", "ab", true);     // Only first character matters
-    test("[abc]", "ba", true);
-    test("[xyz]", "x", true);      // Testing different set
-    test("[xyz]", "y", true);
-    test("[xyz]", "z", true);
-    test("[xyz]", "w", false);     // Not in set
-    test("[a-c]", "a", true);      // Range test
-    test("[a-c]", "b", true);
-    test("[a-c]", "c", true);
-    test("[a-c]", "d", false);     // Outside range
-    test("[0-9]", "5", true);      // Digit range
-    test("[0-9]", "a", false);     // Not a digit
-    test("[A-Z]", "B", true);      // Uppercase letters
-    test("[A-Z]", "b", false);     // Lowercase should not match
-    test("[A-Za-z]", "g", true);   // Any letter (upper or lowercase)
-    test("[A-Za-z]", "G", true);
-    test("[A-Za-z]", "9", false);  // Numbers not included
-    
-    // All tokens combined
-    test("[a-c]+d?[e-g]*h", "abbdehh", true);
-    test("[a-c]+d?[e-g]*h", "xyz", false);
-    test("[a-c]+d?[e-g]*h", "bbdh", true);
-    test("[a-c]+d?[e-g]*h", "bb", false);
+    test("[abc]", "d", false);
+    test("[a-z]", "m", true);   // Lowercase range
+    test("[a-z]", "Z", false);  // Uppercase should not match
+
+    // --- Character Classes with Quantifiers ---
+    test("[aeiou]+", "e", true);
+    test("[aeiou]+", "aeiou", true);
+    test("[aeiou]+", "bcd", false);
+    test("[0-9]+", "12345", true);
+    test("[0-9]+", "abc", false);
+
+    // --- Anchors: '^' (Start of String) ---
+    test("^abc", "abc", true);
+    test("^abc", "xabc", false);
+    test("^abc", "abcdef", true);
+
+    // --- Anchors: '$' (End of String) ---
+    test("abc$", "abc", true);
+    test("abc$", "abcx", false);
+    test("abc$", "xabc", false);
+    test("abc$", "xyzabc", true);
+
+    // --- Both Anchors '^' and '$' ---
+    test("^abc$", "abc", true);  // Must match exactly
+    test("^abc$", "abcd", false);
+    test("^abc$", "xabc", false);
 
     printf("Tests completed.\n");
     return 0;
 }
-
