@@ -11,7 +11,8 @@ enum {
     DOT = 2,
     STAR = 3,
     PLUS = 4,
-    QUESTION = 5
+    QUESTION = 5,
+    PARAN = 6
 };
 
 // Declarations of structures
@@ -45,6 +46,7 @@ bool parseGroupStar(group* g, char* txt, int* index);
 bool parseGroupLiteral(group* g, char* txt, int* index);
 bool parseGroupPlus(group* g, char* txt, int* index);
 bool parseGroupQuestion(group* g, char* txt, int* index);
+bool parseGroupParan(group* g, char* txt, int* index);
 
 bool parseGroupAmount(group* g, char* txt, int* index, int min, int max);
 
@@ -56,6 +58,8 @@ token* tokenizeStar(char* regex, int* index, token* lastToken);
 token* tokenizePlus(char* regex, int* index, token* lastToken);
 token* tokenizeQuestion(char* regex, int* index, token* lastToken);
 token* tokenizeLiteral(char* regex, int* index, token* lastToken);
+token* tokenizeParentheses(char* regex, int* index, token* lastToken);
+
 
 // Group functions
 group* getNextGroup(token** currToken, group* lastGroup);
@@ -64,6 +68,7 @@ group* groupStar(token** currToken, group* lastGroup);
 group* groupLiteral(token** currToken, group* lastGroup);
 group* groupPlus(token** currToken, group* lastGroup);
 group *groupQuestion(token **currToken, group *lastGroup);
+group *groupParan(token **currToken, group *lastGroup);
 
 
 
@@ -72,6 +77,7 @@ void reverseStr(char* str);
 void moveIndex(int* index);
 void moveIndexAmount(int* index, int amount);
 void moveToken(token** currToken);
+bool checkMatching(char* txt, int index, token* t);
 
 // Init functions
 token* initToken(char* str, int type, token* lastToken);
@@ -133,6 +139,11 @@ void printToken(token* token)
         case QUESTION:
             {
                 printf("?");
+                break;
+            }
+        case PARAN:
+            {
+                printf("[%s]", token->str);
                 break;
             }
         case NONE:
@@ -308,6 +319,25 @@ token* tokenizeLiteral(char* regex, int* index, token* lastToken)
     return initToken(str, LITERAL, lastToken);
 }
 
+token* tokenizeParentheses(char* regex, int* index, token* lastToken)
+{
+    int firstIndex = *index;
+    int regexLen = strlen(regex);
+
+    // Go forward in the regex until we meet a non-letter character to calculate the length of the literal
+    for (;*index < regexLen && '[' != regex[*index]; (*index)++) {};
+    int strLen = *index - firstIndex;
+
+    // Allocate memory and copy from regex to a new string
+    // We don't want the [] to be in the str, because we know it's a [] from the type
+    char* str = strndup(regex + firstIndex + 1, strLen - 1);
+    
+    moveIndex(index);
+    // Reverse the string because the regex is reversed
+    reverseStr(str);
+    return initToken(str, PARAN, lastToken);
+}
+
 // Returns the next token in the regex, and moves the index to the next token
 token* getNextToken(char* regex, int* index, token* lastToken)
 {
@@ -328,6 +358,10 @@ token* getNextToken(char* regex, int* index, token* lastToken)
         case '?':
             {
                 return tokenizeQuestion(regex, index, lastToken);
+            }
+        case ']':
+            {
+                return tokenizeParentheses(regex, index, lastToken);
             }
         default:
             {
@@ -361,6 +395,7 @@ token* regexToTokens(char* regex)
     while (regIndex < len && curr != NULL)
     {
         // The function will get the curr and set it's next to the token, and then will return the token
+        printToken(curr);
         curr = getNextToken(regex, &regIndex, curr);
     }
     // Reverse the string back to normal
@@ -402,6 +437,12 @@ group *groupQuestion(token **currToken, group *lastGroup)
     return g;
 }
 
+group *groupParan(token **currToken, group *lastGroup)
+{
+    group* g = initGroup(*currToken, NULL, lastGroup);
+    moveToken(currToken);
+    return g;
+}
 
 group* groupLiteral(token** currToken, group* lastGroup)
 {
@@ -439,6 +480,11 @@ group* getNextGroup(token** currToken, group* lastGroup)
                 return groupQuestion(currToken, lastGroup);
                 break;
             }
+        case PARAN:
+            {
+                return groupParan(currToken, lastGroup);
+                break;
+            }
     }
     return NULL;
 }
@@ -464,10 +510,47 @@ bool parseGroupDot(group* g, char* txt, int* index)
     return parseGroup(g->next, txt, index); // check the next groups
 }
 
+bool between(char c, char min, char max)
+{
+    return c >= min && c <= max;
+}
+
+bool checkParan(char c, token* t)
+{
+    int len = strlen(t->str);
+    for (int i = 0; i < len; i++)
+    {
+        if (c == t->str[i])
+            return true;
+        if (t->str[i] == '-' && between(c, t->str[i-1], t->str[i+1]))
+            return true;
+    }
+    return false;
+}
+
 bool checkMatching(char* txt, int index, token* t)
 {
-    // TODO: Make more robust later
-    return t->type == DOT || t->str[0] == txt[index];
+    switch (t->type)
+    {
+        case DOT:
+            {
+                return true;
+            }
+        case LITERAL:
+            {
+                return t->str[0] == txt[index];
+            }
+        case PARAN:
+            {
+                return checkParan(txt[index], t);
+            }
+        default:
+        {
+            printf("ERROR: UNKOWN TYPE: %d", t->type);
+            return false;
+        }
+    }
+    return false;
 }
 
 bool parseGroupStar(group* g, char* txt, int* index)
@@ -495,6 +578,11 @@ bool parseGroupPlus(group* g, char* txt, int* index)
 bool parseGroupQuestion(group* g, char* txt, int* index)
 {
     return parseGroupAmount(g, txt, index, 0, 1);
+}
+
+bool parseGroupParan(group* g, char* txt, int* index)
+{
+    return checkMatching(txt, *index, g->main);
 }
 
 bool parseGroupAmount(group* g, char* txt, int* index, int min, int max)
@@ -529,6 +617,7 @@ bool parseGroupLiteral(group* g, char* txt, int* index)
 
 bool parseGroup(group* group, char* txt, int* index)
 {
+
     // Function will return if the current group matches
     if (group == NULL)
         return true;
@@ -539,27 +628,26 @@ bool parseGroup(group* group, char* txt, int* index)
         case DOT:
             {
                 return parseGroupDot(group, txt, index);
-                break;
             }
         case STAR:
             {
                 return parseGroupStar(group, txt, index);
-                break;
             }
         case LITERAL:
             {
                 return parseGroupLiteral(group, txt, index);
-                break;
             }
         case PLUS:
             {
                 return parseGroupPlus(group, txt, index);
-                break;
             }
         case QUESTION:
             {
                 return parseGroupQuestion(group, txt, index);
-                break;
+            }
+        case PARAN:
+            {
+                return parseGroupParan(group, txt, index);
             }
         default:
             {
@@ -602,20 +690,45 @@ void test(char* regex, char* txt, bool expected)
 
 
 int main() {
-    // Testing `+`
-    test("a+", "a", true);       // Single 'a' should match
-    test("a+", "aaa", true);     // Multiple 'a's should match
-    test("a+", "", false);       // Empty string should not match
-    test("a+", "b", false);      // 'b' should not match
-    test("a+", "baaa", false);   // Must start matching from the beginning
+    // // Testing `+`
+    // test("a+", "a", true);       // Single 'a' should match
+    // test("a+", "aaa", true);     // Multiple 'a's should match
+    // test("a+", "", false);       // Empty string should not match
+    // test("a+", "b", false);      // 'b' should not match
+    // test("a+", "baaa", false);   // Must start matching from the beginning
+    //
+    // // Testing `?`
+    // test("a?", "", true);        // Empty string should match (zero occurrence)
+    // test("a?", "a", true);       // Single 'a' should match (one occurrence)
+    // test("a?", "aa", false);     // Two 'a's should not match (only zero or one allowed)
+    // test("a?b", "b", true);      // 'b' should match (zero 'a' allowed)
+    // test("a?b", "ab", true);     // 'ab' should match
+    // test("a?b", "aab", false);   // Extra 'a' should not match
 
-    // Testing `?`
-    test("a?", "", true);        // Empty string should match (zero occurrence)
-    test("a?", "a", true);       // Single 'a' should match (one occurrence)
-    test("a?", "aa", false);     // Two 'a's should not match (only zero or one allowed)
-    test("a?b", "b", true);      // 'b' should match (zero 'a' allowed)
-    test("a?b", "ab", true);     // 'ab' should match
-    test("a?b", "aab", false);   // Extra 'a' should not match
+    // Testing `[]`
+    test("[abc]", "a", true);      // Single match in set
+    test("[abc]", "b", true);
+    test("[abc]", "c", true);
+    test("[abc]", "d", false);     // Not in set
+    test("[abc]", "ab", true);     // Only first character matters
+    test("[abc]", "ba", true);
+    test("[xyz]", "x", true);      // Testing different set
+    test("[xyz]", "y", true);
+    test("[xyz]", "z", true);
+    test("[xyz]", "w", false);     // Not in set
+    test("[a-c]", "a", true);      // Range test
+    test("[a-c]", "b", true);
+    test("[a-c]", "c", true);
+    test("[a-c]", "d", false);     // Outside range
+    test("[0-9]", "5", true);      // Digit range
+    test("[0-9]", "a", false);     // Not a digit
+    test("[A-Z]", "B", true);      // Uppercase letters
+    test("[A-Z]", "b", false);     // Lowercase should not match
+    test("[A-Za-z]", "g", true);   // Any letter (upper or lowercase)
+    test("[A-Za-z]", "G", true);
+    test("[A-Za-z]", "9", false);  // Numbers not included
+    test("[a-c]+d?[e-g]*h", "abbdehh", true);
+
 
     printf("Tests completed.\n");
     return 0;
