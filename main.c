@@ -9,7 +9,9 @@ enum {
     NONE = 0,
     LITERAL = 1,
     DOT = 2,
-    STAR = 3
+    STAR = 3,
+    PLUS = 4,
+    QUESTION = 5
 };
 
 // Declarations of structures
@@ -41,11 +43,18 @@ bool parseGroup(group* group, char* txt, int* index);
 bool parseGroupDot(group* g, char* txt, int* index);
 bool parseGroupStar(group* g, char* txt, int* index);
 bool parseGroupLiteral(group* g, char* txt, int* index);
+bool parseGroupPlus(group* g, char* txt, int* index);
+bool parseGroupQuestion(group* g, char* txt, int* index);
+
+bool parseGroupAmount(group* g, char* txt, int* index, int min, int max);
 
 // Token functions
 token* getNextToken(char* regex, int* index, token* lastToken);
+token* seperateNextToken(char* regex, int* index, token* lastToken);
 token* tokenizeDot(int* index, token* lastToken);
 token* tokenizeStar(char* regex, int* index, token* lastToken);
+token* tokenizePlus(char* regex, int* index, token* lastToken);
+token* tokenizeQuestion(char* regex, int* index, token* lastToken);
 token* tokenizeLiteral(char* regex, int* index, token* lastToken);
 
 // Group functions
@@ -53,6 +62,9 @@ group* getNextGroup(token** currToken, group* lastGroup);
 group* groupDot(token** currToken, group* lastGroup);
 group* groupStar(token** currToken, group* lastGroup);
 group* groupLiteral(token** currToken, group* lastGroup);
+group* groupPlus(token** currToken, group* lastGroup);
+group *groupQuestion(token **currToken, group *lastGroup);
+
 
 
 // Helper functions
@@ -111,6 +123,16 @@ void printToken(token* token)
         case LITERAL:
             {
                 printf("%s", token->str);
+                break;
+            }
+        case PLUS:
+            {
+                printf("+");
+                break;
+            }
+        case QUESTION:
+            {
+                printf("?");
                 break;
             }
         case NONE:
@@ -225,10 +247,36 @@ token* tokenizeStar(char* regex, int* index, token* lastToken)
     token* starToken = initToken(NULL, STAR, lastToken);
     (*index)++;
     
+    return seperateNextToken(regex, index, starToken);
+}
+
+ 
+token* tokenizePlus(char* regex, int* index, token* lastToken)
+{
+
+    // Create star token
+    token* plusToken = initToken(NULL, PLUS, lastToken);
+    (*index)++;
+    
+    return seperateNextToken(regex, index, plusToken);
+}
+token* tokenizeQuestion(char* regex, int* index, token* lastToken)
+{
+
+    // Create Question token
+    token* questionToken = initToken(NULL, QUESTION, lastToken);
+    (*index)++;
+    
+    return seperateNextToken(regex, index, questionToken);
+}
+
+token* seperateNextToken(char* regex, int* index, token* lastToken)
+{
+
     // create fake index to not tamper with the existing index
     int tempIndex = *index;
     // Get the next token in order for the star token to work properly
-    token* nextToken = getNextToken(regex, &tempIndex, starToken);
+    token* nextToken = getNextToken(regex, &tempIndex, lastToken);
     // If the next token is literal, take only the first letter and make it a seperate token
     (*index)++;
     if (nextToken->type == LITERAL)
@@ -236,7 +284,7 @@ token* tokenizeStar(char* regex, int* index, token* lastToken)
         // Allocate memory for newText instead of using the same memory as nextToken
         char* newTxt = strndup(nextToken->str + strlen(nextToken->str) - 1, 1);
         freeToken(nextToken);
-        return initToken(newTxt, LITERAL, starToken);
+        return initToken(newTxt, LITERAL, lastToken);
     }
     return nextToken;
 }
@@ -328,6 +376,25 @@ group* groupStar(token** currToken, group* lastGroup)
     return g;
 }
 
+group* groupPlus(token** currToken, group* lastGroup)
+{
+    token* plusToken = *currToken;
+    moveToken(currToken);
+    group* g =  initGroup(plusToken, *currToken, lastGroup);
+    moveToken(currToken);
+    return g;
+}
+
+group *groupQuestion(token **currToken, group *lastGroup)
+{
+    token* questionToken = *currToken;
+    moveToken(currToken);
+    group* g =  initGroup(questionToken, *currToken, lastGroup);
+    moveToken(currToken);
+    return g;
+}
+
+
 group* groupLiteral(token** currToken, group* lastGroup)
 {
     group* g =  initGroup(*currToken, NULL, lastGroup);
@@ -352,6 +419,16 @@ group* getNextGroup(token** currToken, group* lastGroup)
         case LITERAL:
             {
                 return groupLiteral(currToken, lastGroup);
+                break;
+            }
+        case PLUS:
+            {
+                return groupPlus(currToken, lastGroup);
+                break;
+            }
+        case QUESTION:
+            {
+                return groupQuestion(currToken, lastGroup);
                 break;
             }
     }
@@ -387,7 +464,34 @@ bool checkMatching(char* txt, int index, token* t)
 
 bool parseGroupStar(group* g, char* txt, int* index)
 {
-    moveIndexAmount(index, -1);
+    // moveIndexAmount(index, -1);
+    // int savedIndex = *index;
+    // do
+    // {
+    //     moveIndex(index);
+    //     if (parseGroup(g->next, txt, index))
+    //         return true;
+    //     savedIndex++;
+    //     *index = savedIndex;
+    // } while (checkMatching(txt, *index, g->secondary) && *index < strlen(txt));
+    // return false;
+    return parseGroupAmount(g, txt, index, 0, strlen(txt));
+}
+
+
+bool parseGroupPlus(group* g, char* txt, int* index)
+{
+    return parseGroupAmount(g, txt, index, 1, strlen(txt));
+}
+
+bool parseGroupQuestion(group* g, char* txt, int* index)
+{
+    return parseGroupAmount(g, txt, index, 0, 1);
+}
+
+bool parseGroupAmount(group* g, char* txt, int* index, int min, int max)
+{
+    moveIndexAmount(index, min-1);
     int savedIndex = *index;
     do
     {
@@ -396,7 +500,7 @@ bool parseGroupStar(group* g, char* txt, int* index)
             return true;
         savedIndex++;
         *index = savedIndex;
-    } while (checkMatching(txt, *index, g->secondary) && *index < strlen(txt));
+    } while (checkMatching(txt, *index, g->secondary) && *index < strlen(txt) && *index < max);
     return false;
 }
 
@@ -450,21 +554,26 @@ bool parseGroup(group* group, char* txt, int* index)
 // Function will parse regex and will return true or false if the txt matches the regex
 bool parseRegex(char *regex, char *txt)
 {
+    if (strlen(regex) == 0)
+        return strlen(txt) == 0;
     // Convert regex to tokens
     token* tokens = regexToTokens(regex);
     // Group tokens
     group* groups = tokensToGroups(tokens);
     // Go through the groups and the txt
     int txtIndex = 0;
-    return parseGroup(groups, txt, &txtIndex) && txt[txtIndex] == '\0';
+    return parseGroup(groups, txt, &txtIndex);
 }
 
-void test(char* regex, char* txt, bool expected) {
+void test(char* regex, char* txt, bool expected)
+{
     // Create new str for the regex
+    if (strlen(regex) == 0)
+        return;
     char* newRegex = strdup(regex);
     // Print the test, the tokens, and the groups
-    // printf("Regex: \"%s\", Text: \"%s\"\n", regex, txt);
-    // printAllGroups(tokensToGroups(regexToTokens(newRegex)));
+    printf("\nRegex: \"%s\", Text: \"%s\"\n", regex, txt);
+    printAllGroups(tokensToGroups(regexToTokens(newRegex)));
     bool result = parseRegex(newRegex, txt);
     printf("Regex: \"%s\", Text: \"%s\" → %s (Expected: %s)",
            regex, txt, result ? "MATCH" : "NO MATCH",
@@ -472,35 +581,44 @@ void test(char* regex, char* txt, bool expected) {
     printf(" Correct? %s\n", result == expected ? "YES" : "NO");
 }
 
+
 int main() {
-
-    printf("\n");
-    // char regex[] = "a.*";
-    // printAllGroups(tokensToGroups(regexToTokens(regex)));
-
-    
-    // Basic matching
+    // Basic literal matches
+    test("abc", "abc", true);
+    test("abc", "abcd", true); // Should match from the start
+    test("abc", "aabc", false);
     test("hello", "hello", true);
-    test("hello", "helloo", false);
-    test("hello", "hell", false);
+    test("hello", "Hello", false); // Case-sensitive
 
-    // Wildcard `.` test
-    test("h.llo", "hello", true);
-    test("h.llo", "hallo", true);
-    test("h.llo", "hxllo", true);
-    test("h.llo", "hlllo", true);
+    // Wildcard .
+    test("a.c", "abc", true);
+    test("a.c", "adc", true);
+    test("a.c", "ac", false);
+    test("...", "abc", true);
+    test("...", "abcd", true);
 
-    // Star `*` test
-    test("a*b", "b", true);        // Matches zero 'a'
-    test("a*b", "ab", true);       // Matches one 'a'
-    test("a*b", "aaab", true);     // Matches multiple 'a'
-    test("a*b", "ba", false);      // 'b' must be at the end
+    // Star *
+    test("a*", "", true);  // "" is valid (zero occurrences)
+    test("a*", "a", true);
+    test("a*", "aaaa", true);
+    test("a*", "b", true);
+    test("ab*", "a", true); // "b*" can be empty
+    test("ab*", "ab", true);
+    test("ab*", "abb", true);
+    test("ab*", "ac", true);
+    test(".*", "anything", true); // .* should match everything
+    test("a.*c", "abc", true);
+    test("a.*c", "ac", true);
+    test("a.*c", "axxxc", true);
+    test("a.*c", "a", false);
 
-    // Combination of `.` and `*`
-    test("a.*b", "ab", true);
-    test("a.*b", "acb", true);
-    test("a.*b", "axyzb", true);
-    test("a.*b", "a", false);  // No 'b' at the end
-    //
+    // Edge cases
+    test("", "", true);  // Empty regex should match empty string
+    test("", "abc", true); // Empty regex should match anything (trivial match)
+    test("a*", "", true);
+    test("a*", "aaaaaaa", true);
+    test("a*", "baaaa", true);
+    
     return 0;
 }
+
