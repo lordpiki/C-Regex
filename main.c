@@ -572,19 +572,16 @@ bool parseGroupStar(group* g, char* txt, int* index)
 
 bool parseGroupPlus(group* g, char* txt, int* index)
 {
-    printf("Parsing plus\n");
     return checkMatching(txt, *index, g->secondary) && parseGroupAmount(g, txt, index, 1, strlen(txt));
 }
 
 bool parseGroupQuestion(group* g, char* txt, int* index)
 {
-    printf("Parsing question, index %d\n", *index);
     return parseGroupAmount(g, txt, index, 0, *index + 1);
 }
 
 bool parseGroupParan(group* g, char* txt, int* index)
 {
-    printf("Parsing paran\n");
     return checkMatching(txt, *index, g->main);
 }
 
@@ -594,14 +591,12 @@ bool parseGroupAmount(group* g, char* txt, int* index, int min, int max)
     int savedIndex = *index;
     do
     {
-        printf("Moving on\n");
         moveIndex(index);
         if (parseGroup(g->next, txt, index))
             return true;
         savedIndex++;
         *index = savedIndex;
     } while (checkMatching(txt, *index, g->secondary) && *index < strlen(txt) && *index < max);
-    printf("Failed\n");
     return false;
 }
 
@@ -711,28 +706,33 @@ int main() {
     // test("a?b", "aab", false);   // Extra 'a' should not match
 
     // Testing `[]`
-    // test("[abc]", "a", true);      // Single match in set
-    // test("[abc]", "b", true);
-    // test("[abc]", "c", true);
-    // test("[abc]", "d", false);     // Not in set
-    // test("[abc]", "ab", true);     // Only first character matters
-    // test("[abc]", "ba", true);
-    // test("[xyz]", "x", true);      // Testing different set
-    // test("[xyz]", "y", true);
-    // test("[xyz]", "z", true);
-    // test("[xyz]", "w", false);     // Not in set
-    // test("[a-c]", "a", true);      // Range test
-    // test("[a-c]", "b", true);
-    // test("[a-c]", "c", true);
-    // test("[a-c]", "d", false);     // Outside range
-    // test("[0-9]", "5", true);      // Digit range
-    // test("[0-9]", "a", false);     // Not a digit
-    // test("[A-Z]", "B", true);      // Uppercase letters
-    // test("[A-Z]", "b", false);     // Lowercase should not match
-    // test("[A-Za-z]", "g", true);   // Any letter (upper or lowercase)
-    // test("[A-Za-z]", "G", true);
-    // test("[A-Za-z]", "9", false);  // Numbers not included
+    test("[abc]", "a", true);      // Single match in set
+    test("[abc]", "b", true);
+    test("[abc]", "c", true);
+    test("[abc]", "d", false);     // Not in set
+    test("[abc]", "ab", true);     // Only first character matters
+    test("[abc]", "ba", true);
+    test("[xyz]", "x", true);      // Testing different set
+    test("[xyz]", "y", true);
+    test("[xyz]", "z", true);
+    test("[xyz]", "w", false);     // Not in set
+    test("[a-c]", "a", true);      // Range test
+    test("[a-c]", "b", true);
+    test("[a-c]", "c", true);
+    test("[a-c]", "d", false);     // Outside range
+    test("[0-9]", "5", true);      // Digit range
+    test("[0-9]", "a", false);     // Not a digit
+    test("[A-Z]", "B", true);      // Uppercase letters
+    test("[A-Z]", "b", false);     // Lowercase should not match
+    test("[A-Za-z]", "g", true);   // Any letter (upper or lowercase)
+    test("[A-Za-z]", "G", true);
+    test("[A-Za-z]", "9", false);  // Numbers not included
+    
+    // All tokens combined
     test("[a-c]+d?[e-g]*h", "abbdehh", true);
+    test("[a-c]+d?[e-g]*h", "xyz", false);
+    test("[a-c]+d?[e-g]*h", "bbdh", true);
+    test("[a-c]+d?[e-g]*h", "bb", false);
 
     printf("Tests completed.\n");
     return 0;
